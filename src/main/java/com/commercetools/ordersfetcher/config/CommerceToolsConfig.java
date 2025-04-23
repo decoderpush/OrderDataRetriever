@@ -14,32 +14,33 @@ import org.springframework.context.annotation.Profile;
 import lombok.extern.slf4j.Slf4j;
 
 @Configuration
-@Slf4j
 public class CommerceToolsConfig {
 
-    @Value("${commercetools.project-key}")
+    private static final Logger logger = Logger.getLogger(CommerceToolsConfig.class.getName());
+    
+    @Value("${commercetools.project-key:demo-project}")
     private String projectKey;
     
-    @Value("${commercetools.client-id}")
+    @Value("${commercetools.client-id:demo-client}")
     private String clientId;
     
-    @Value("${commercetools.client-secret}")
+    @Value("${commercetools.client-secret:demo-secret}")
     private String clientSecret;
     
-    @Value("${commercetools.region}")
+    @Value("${commercetools.region:GCP_EUROPE_WEST1}")
     private String region;
     
-    @Value("${commercetools.mock-mode:false}")
+    @Value("${commercetools.mock-mode:true}")
     private boolean mockMode;
 
     @Bean
     public ProjectApiRoot createApiClient() {
         if (mockMode) {
-            log.info("Using mock Commerce Tools API client");
+            logger.info("Using mock Commerce Tools API client");
             return new MockProjectApiRoot();
         }
         
-        log.info("Connecting to Commerce Tools API with project key: {}", projectKey);
+        logger.info("Connecting to Commerce Tools API with project key: " + projectKey);
         return ApiRootBuilder.of()
                 .defaultClient(
                         ClientCredentials.of()
