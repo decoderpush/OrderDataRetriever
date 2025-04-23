@@ -1,0 +1,70 @@
+// src/main/java/com/example/ParallelOffsetOrderFetcher.java
+package com.example;
+
+import com.commercetools.api.client.ProjectApiRoot;
+import com.commercetools.api.models.order.Order;
+import com.commercetools.api.models.order.OrderPagedQueryResponse;
+import io.vrap.rmf.base.client.ApiHttpResponse;
+
+import java.time.ZonedDateTime;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.*;
+
+public class ParallelOffsetOrderFetcher {
+
+    private final ProjectApiRoot apiRoot;
+    private static final int PAGE_SIZE = 500;
+    private static final int THREAD_COUNT = 5;
+
+    public ParallelOffsetOrderFetcher(ProjectApiRoot apiRoot) {
+        this.apiRoot = apiRoot;
+    }
+
+    public List<Order> fetchOrders(ZonedDateTime from, ZonedDateTime to) throws InterruptedException, ExecutionException {
+        long total = countOrders(from, to);
+        int totalPages = (int) Math.ceil((double) total / PAGE_SIZE);
+
+        ExecutorService executor = Executors.newFixedThreadPool(THREAD_COUNT);
+        List<Future<List<Order>>> futures = new ArrayList<>();
+
+        for (int page = 0; page < totalPages; page++) {
+            int offset = page * PAGE_SIZE;
+            futures.add(executor.submit(() -> fetchPage(from, to, offset)));
+        }
+
+        List<Order> allOrders = new ArrayList<>();
+        for (Future<List<Order>> future : futures) {
+            allOrders.addAll(future.get());
+        }
+
+        executor.shutdown();
+        return allOrders;
+    }
+
+    private long countOrders(ZonedDateTime from, ZonedDateTime to) {
+        ApiHttpResponse<OrderPagedQueryResponse> response = apiRoot.orders()
+            .get()
+            .withWhere("createdAt >= :from AND createdAt <= :to")
+            .withPredicateVar("from", from.toString())
+            .withPredicateVar("to", to.toString())
+            .withLimit(1)
+            .executeBlocking();
+
+        return response.getBody().getTotal();
+    }
+
+    private List<Order> fetchPage(ZonedDateTime from, ZonedDateTime to, int offset) {
+        return apiRoot.orders()
+            .get()
+            .withWhere("createdAt >= :from AND createdAt <= :to")
+            .withPredicateVar("from", from.toString())
+            .withPredicateVar("to", to.toString())
+            .withLimit(PAGE_SIZE)
+            .withOffset(offset)
+            .withSort("createdAt asc")
+            .executeBlocking()
+            .getBody()
+            .getResults();
+    }
+}
