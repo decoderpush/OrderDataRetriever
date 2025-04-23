@@ -1,25 +1,47 @@
 package com.commercetools.ordersfetcher.model;
 
-import com.fasterxml.jackson.annotation.JsonFormat;
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.PastOrPresent;
 
 import java.time.LocalDate;
 
-@Data
-@NoArgsConstructor
-@AllArgsConstructor
+/**
+ * Represents a date range request for fetching orders.
+ * 
+ * Note: In a real implementation, we would use Lombok annotations (@Data, etc.)
+ * but for demonstration purposes we're using plain Java.
+ */
 public class DateRangeRequest {
-    
-    @JsonFormat(pattern = "yyyy-MM-dd")
+
+    @NotNull(message = "Start date is required")
+    @PastOrPresent(message = "Start date must be in the past or present")
     private LocalDate startDate;
-    
-    @JsonFormat(pattern = "yyyy-MM-dd")
+
+    @NotNull(message = "End date is required")
+    @PastOrPresent(message = "End date must be in the past or present")
     private LocalDate endDate;
     
-    // Optional fields for batch processing configuration
-    private boolean saveToFile;
-    private String outputFormat;
-    private String outputPath;
+    public DateRangeRequest() {
+    }
+    
+    public DateRangeRequest(LocalDate startDate, LocalDate endDate) {
+        this.startDate = startDate;
+        this.endDate = endDate;
+    }
+
+    public LocalDate getStartDate() {
+        return startDate;
+    }
+
+    public void setStartDate(LocalDate startDate) {
+        this.startDate = startDate;
+    }
+
+    public LocalDate getEndDate() {
+        return endDate;
+    }
+
+    public void setEndDate(LocalDate endDate) {
+        this.endDate = endDate;
+    }
 }

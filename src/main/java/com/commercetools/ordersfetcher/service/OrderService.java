@@ -6,22 +6,26 @@ import com.commercetools.ordersfetcher.model.DateRangeRequest;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
+/**
+ * Service for fetching orders from Commerce Tools
+ */
 public interface OrderService {
-    
+
     /**
-     * Fetch all orders within the given date range.
-     * This method segments the date range if needed and handles pagination.
+     * Fetches all orders in the given date range, handling the Commerce Tools
+     * API 10,000 record limit.
      *
-     * @param dateRangeRequest The date range parameters for order retrieval
-     * @return List of all orders within the date range
+     * @param dateRangeRequest The date range to fetch orders for
+     * @return A complete list of all orders in the date range
      */
     List<Order> fetchAllOrdersInDateRange(DateRangeRequest dateRangeRequest);
     
     /**
-     * Asynchronously fetch all orders within the given date range.
+     * Asynchronously fetches all orders in the given date range, handling 
+     * the Commerce Tools API 10,000 record limit.
      *
-     * @param dateRangeRequest The date range parameters for order retrieval
-     * @return CompletableFuture containing the list of all orders within the date range
+     * @param dateRangeRequest The date range to fetch orders for
+     * @return A CompletableFuture containing the complete list of all orders in the date range
      */
     CompletableFuture<List<Order>> fetchAllOrdersInDateRangeAsync(DateRangeRequest dateRangeRequest);
 }

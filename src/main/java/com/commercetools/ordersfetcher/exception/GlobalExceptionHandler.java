@@ -4,7 +4,6 @@ import io.vrap.rmf.base.client.error.BadGatewayException;
 import io.vrap.rmf.base.client.error.BadRequestException;
 import io.vrap.rmf.base.client.error.ForbiddenException;
 import io.vrap.rmf.base.client.error.NotFoundException;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ControllerAdvice;
@@ -14,44 +13,47 @@ import org.springframework.web.context.request.WebRequest;
 import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.logging.Logger;
+import java.util.logging.Level;
 
 @ControllerAdvice
-@Slf4j
 public class GlobalExceptionHandler {
+    
+    private static final Logger logger = Logger.getLogger(GlobalExceptionHandler.class.getName());
 
     @ExceptionHandler(CommerceToolsException.class)
     public ResponseEntity<Object> handleCommerceToolsException(CommerceToolsException ex, WebRequest request) {
-        log.error("Commerce Tools API error: {}", ex.getMessage(), ex);
+        logger.severe("Commerce Tools API error: " + ex.getMessage());
         return buildErrorResponse(ex, "Commerce Tools API Error", HttpStatus.INTERNAL_SERVER_ERROR, request);
     }
 
     @ExceptionHandler(BadRequestException.class)
     public ResponseEntity<Object> handleBadRequestException(BadRequestException ex, WebRequest request) {
-        log.error("Bad request error: {}", ex.getMessage(), ex);
+        logger.severe("Bad request error: " + ex.getMessage());
         return buildErrorResponse(ex, "Invalid Request", HttpStatus.BAD_REQUEST, request);
     }
 
     @ExceptionHandler(NotFoundException.class)
     public ResponseEntity<Object> handleNotFoundException(NotFoundException ex, WebRequest request) {
-        log.error("Resource not found: {}", ex.getMessage(), ex);
+        logger.severe("Resource not found: " + ex.getMessage());
         return buildErrorResponse(ex, "Resource Not Found", HttpStatus.NOT_FOUND, request);
     }
 
     @ExceptionHandler(ForbiddenException.class)
     public ResponseEntity<Object> handleForbiddenException(ForbiddenException ex, WebRequest request) {
-        log.error("Access forbidden: {}", ex.getMessage(), ex);
+        logger.severe("Access forbidden: " + ex.getMessage());
         return buildErrorResponse(ex, "Access Forbidden", HttpStatus.FORBIDDEN, request);
     }
 
     @ExceptionHandler(BadGatewayException.class)
     public ResponseEntity<Object> handleBadGatewayException(BadGatewayException ex, WebRequest request) {
-        log.error("Bad gateway error: {}", ex.getMessage(), ex);
+        logger.severe("Bad gateway error: " + ex.getMessage());
         return buildErrorResponse(ex, "API Gateway Error", HttpStatus.BAD_GATEWAY, request);
     }
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<Object> handleGenericException(Exception ex, WebRequest request) {
-        log.error("Unexpected error: {}", ex.getMessage(), ex);
+        logger.severe("Unexpected error: " + ex.getMessage());
         return buildErrorResponse(ex, "Unexpected Error", HttpStatus.INTERNAL_SERVER_ERROR, request);
     }
 
