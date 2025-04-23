@@ -22,6 +22,7 @@ import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -35,6 +36,7 @@ public class OrderServiceImpl implements OrderService {
     private static final int MAX_RESULTS_PER_QUERY = 10000; // Commerce Tools limit
     private static final String CREATED_AT_FILTER_FORMAT = "createdAt >= \"%s\" and createdAt <= \"%s\"";
     private static final DateTimeFormatter ISO_FORMATTER = DateTimeFormatter.ISO_OFFSET_DATE_TIME;
+    private static final long TIMESTAMP_INCREMENT_NANOS = 1_000_000; // 1 millisecond in nanoseconds
 
     private final ProjectApiRoot apiRoot;
     private final DateRangeSegmenter dateRangeSegmenter;
@@ -58,7 +60,7 @@ public class OrderServiceImpl implements OrderService {
             DateRangeSegmenter.DateRange segment = dateRanges.get(i);
             log.info("Processing segment {}/{}: {} to {}", i+1, dateRanges.size(), segment.getStartDate(), segment.getEndDate());
             
-            List<Order> segmentOrders = fetchOrdersForSegment(segment);
+            List<Order> segmentOrders = fetchAllOrdersForSegment(segment);
             allOrders.addAll(segmentOrders);
             
             totalOrdersProcessed.addAndGet(segmentOrders.size());
@@ -75,32 +77,111 @@ public class OrderServiceImpl implements OrderService {
         return CompletableFuture.completedFuture(fetchAllOrdersInDateRange(dateRangeRequest));
     }
     
-    private List<Order> fetchOrdersForSegment(DateRangeSegmenter.DateRange dateRange) {
+    /**
+     * Fetches ALL orders for a given date range segment, handling Commerce Tools' 10,000 result limit
+     * using a time-based cursor pagination approach.
+     * 
+     * @param dateRange The date range to fetch orders for
+     * @return A complete list of all orders in the date range
+     */
+    private List<Order> fetchAllOrdersForSegment(DateRangeSegmenter.DateRange dateRange) {
         List<Order> segmentOrders = new ArrayList<>();
         
-        ZonedDateTime startDateTime = dateRange.getStartDate().atStartOfDay(ZoneOffset.UTC);
-        ZonedDateTime endDateTime = dateRange.getEndDate().atTime(LocalTime.MAX).atZone(ZoneOffset.UTC);
+        // Initialize the time window
+        ZonedDateTime segmentStartDateTime = dateRange.getStartDate().atStartOfDay(ZoneOffset.UTC);
+        ZonedDateTime segmentEndDateTime = dateRange.getEndDate().atTime(LocalTime.MAX).atZone(ZoneOffset.UTC);
         
-        String where = String.format(
-                CREATED_AT_FILTER_FORMAT,
-                startDateTime.format(ISO_FORMATTER),
-                endDateTime.format(ISO_FORMATTER)
-        );
+        // Current window start time - this will advance as we process batches
+        ZonedDateTime currentStartDateTime = segmentStartDateTime;
         
-        // Start with the first page
-        int offset = 0;
-        boolean hasMore = true;
-        
-        while (hasMore && offset < MAX_RESULTS_PER_QUERY) {
-            OrderPagedQueryResponse response = fetchOrdersPage(where, offset, PAGE_SIZE);
-            segmentOrders.addAll(response.getResults());
+        // Keep fetching until we've covered the entire date range
+        while (currentStartDateTime.isBefore(segmentEndDateTime) || currentStartDateTime.isEqual(segmentEndDateTime)) {
+            log.info("Fetching batch of orders from {} to {}", 
+                    currentStartDateTime.format(ISO_FORMATTER), 
+                    segmentEndDateTime.format(ISO_FORMATTER));
+                    
+            // Construct the filter for the current time window
+            String where = String.format(
+                    CREATED_AT_FILTER_FORMAT,
+                    currentStartDateTime.format(ISO_FORMATTER),
+                    segmentEndDateTime.format(ISO_FORMATTER)
+            );
             
-            // Prepare for next page
-            offset += PAGE_SIZE;
-            hasMore = (response.getResults().size() == PAGE_SIZE);
+            // Fetch a batch of orders (up to 10,000) within the current time window
+            List<Order> batchOrders = fetchOrdersBatch(where);
+            segmentOrders.addAll(batchOrders);
+            
+            log.info("Retrieved {} orders in current batch", batchOrders.size());
+            
+            // If we got fewer than MAX_RESULTS_PER_QUERY, we've reached the end of this segment
+            if (batchOrders.size() < MAX_RESULTS_PER_QUERY) {
+                break;
+            }
+            
+            // Find the latest timestamp in the batch to use as the start of the next window
+            // This ensures we don't miss any orders that have the same timestamp as our cursor
+            ZonedDateTime latestTimestamp = findLatestTimestamp(batchOrders);
+            if (latestTimestamp == null || !latestTimestamp.isAfter(currentStartDateTime)) {
+                // Safeguard against potential issues - if we can't advance the cursor, we're done
+                log.warn("Could not advance time cursor beyond {}. Stopping.", currentStartDateTime);
+                break;
+            }
+            
+            // Advance the cursor with a small increment to avoid duplication
+            currentStartDateTime = latestTimestamp.plusNanos(TIMESTAMP_INCREMENT_NANOS);
+            log.info("Advancing time cursor to: {}", currentStartDateTime.format(ISO_FORMATTER));
         }
         
         return segmentOrders;
+    }
+    
+    /**
+     * Fetches a batch of orders (up to 10,000) for the given filter criteria.
+     * 
+     * @param where The filter criteria
+     * @return A list of orders (up to 10,000)
+     */
+    private List<Order> fetchOrdersBatch(String where) {
+        List<Order> batchOrders = new ArrayList<>();
+        int offset = 0;
+        boolean hasMore = true;
+        
+        // Keep fetching pages until we get all results or reach the 10,000 limit
+        while (hasMore && offset < MAX_RESULTS_PER_QUERY) {
+            OrderPagedQueryResponse response = fetchOrdersPage(where, offset, PAGE_SIZE);
+            List<Order> pageOrders = response.getResults();
+            batchOrders.addAll(pageOrders);
+            
+            // Prepare for next page
+            offset += PAGE_SIZE;
+            
+            // Check if we've reached the end
+            hasMore = (pageOrders.size() == PAGE_SIZE);
+            
+            // Log progress for large batches
+            if (offset % 2000 == 0 && offset > 0) {
+                log.info("Fetched {} orders so far in current batch", offset);
+            }
+        }
+        
+        return batchOrders;
+    }
+    
+    /**
+     * Finds the latest timestamp from a list of orders.
+     * 
+     * @param orders The list of orders to search
+     * @return The latest ZonedDateTime found, or null if the list is empty
+     */
+    private ZonedDateTime findLatestTimestamp(List<Order> orders) {
+        if (orders == null || orders.isEmpty()) {
+            return null;
+        }
+        
+        return orders.stream()
+                .map(order -> ZonedDateTime.parse(order.getCreatedAt()))
+                .max(Comparator.naturalOrder())
+                .orElse(null);
     }
     
     @Retryable(
@@ -115,7 +196,7 @@ public class OrderServiceImpl implements OrderService {
             return apiRoot.orders()
                     .get()
                     .withWhere(where)
-                    .withSort("createdAt asc")
+                    .withSort("createdAt asc") // Crucial for correct cursor-based pagination
                     .withOffset(offset)
                     .withLimit(limit)
                     .executeBlocking()
