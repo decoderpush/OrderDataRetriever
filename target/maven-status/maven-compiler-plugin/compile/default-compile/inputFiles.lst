@@ -1,6 +1,9 @@
 /home/runner/workspace/src/main/java/com/commercetools/ordersfetcher/demo/DemoOrderService.java
 /home/runner/workspace/src/main/java/com/commercetools/ordersfetcher/OrdersFetcherApplication.java
+/home/runner/workspace/src/main/java/com/commercetools/ordersfetcher/demo/config/AsyncConfig.java
+/home/runner/workspace/src/main/java/com/commercetools/ordersfetcher/demo/controller/DemoController.java
 /home/runner/workspace/src/main/java/com/commercetools/ordersfetcher/model/OrdersResponse.java
+/home/runner/workspace/src/main/java/com/commercetools/ordersfetcher/ParallelProcessingDemo.java
 /home/runner/workspace/src/main/java/com/commercetools/ordersfetcher/demo/DemoController.java
 /home/runner/workspace/src/main/java/com/commercetools/ordersfetcher/model/DateRangeRequest.java
 /home/runner/workspace/src/main/java/com/commercetools/ordersfetcher/mock/MockProjectApiRoot.java
@@ -8,10 +11,13 @@
 /home/runner/workspace/src/main/java/com/commercetools/ordersfetcher/service/OrderServiceImpl.java
 /home/runner/workspace/src/main/java/com/commercetools/ordersfetcher/controller/OrderController.java
 /home/runner/workspace/src/main/java/com/commercetools/ordersfetcher/exception/GlobalExceptionHandler.java
+/home/runner/workspace/src/main/java/com/commercetools/ordersfetcher/demo/SimpleOrdersApplication.java
 /home/runner/workspace/src/main/java/com/commercetools/ordersfetcher/config/CommerceToolsConfig.java
 /home/runner/workspace/src/main/java/com/commercetools/ordersfetcher/mock/MockOrdersGet.java
+/home/runner/workspace/src/main/java/com/commercetools/ordersfetcher/demo/model/SimpleOrder.java
 /home/runner/workspace/src/main/java/com/commercetools/ordersfetcher/util/DateRangeSegmenter.java
 /home/runner/workspace/src/main/java/com/commercetools/ordersfetcher/service/OrderService.java
 /home/runner/workspace/src/main/java/com/commercetools/ordersfetcher/exception/CommerceToolsException.java
 /home/runner/workspace/src/main/java/com/commercetools/ordersfetcher/config/SpringConfig.java
 /home/runner/workspace/src/main/java/com/commercetools/ordersfetcher/config/AsyncConfig.java
+/home/runner/workspace/src/main/java/com/commercetools/ordersfetcher/demo/service/SimpleOrderService.java
